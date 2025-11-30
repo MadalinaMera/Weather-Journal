@@ -3,21 +3,31 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
+const jwt = require('jsonwebtoken'); // Import JWT
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
         origin: '*',
-        methods: ['GET', 'POST']
+        methods: ['GET', 'POST', 'PUT']
     }
 });
+
+// Configuration
+const PORT = process.env.PORT || 3001;
+const JWT_SECRET = 'your-secret-key-change-this-in-production'; // Keep this secure
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// In-memory storage for weather entries
+// In-memory storage
+// Users for authentication (In a real app, this would be a database)
+const users = [
+    { username: 'admin', password: 'password123' }
+];
+
 let weatherEntries = [
     {
         id: uuidv4(),
@@ -45,21 +55,53 @@ let weatherEntries = [
     }
 ];
 
-// Socket.io connection
+// --- JWT Middleware ---
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+    if (token == null) return res.status(401).json({ error: 'No token provided' });
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ error: 'Invalid token' });
+        req.user = user;
+        next();
+    });
+};
+
+// --- Socket.io ---
 io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
-
     socket.on('disconnect', () => {
         console.log('Client disconnected:', socket.id);
     });
 });
 
-// GET /entries - Fetch entries with pagination
-app.get('/entries', (req, res) => {
+// --- Routes ---
+
+// Login Endpoint (Issues JWT)
+app.post('/login', (req, res) => {
+    const { username, password } = req.body;
+
+    console.log(username, password);
+    // Validate user (Simple check against in-memory array)
+    const user = users.find(u => u.username === username && u.password === password);
+
+    if (user) {
+        // Generate JWT
+        const token = jwt.sign({ username: user.username }, JWT_SECRET, { expiresIn: '24h' });
+        res.json({ token, username: user.username });
+    } else {
+        res.status(401).json({ error: 'Invalid credentials' });
+    }
+});
+
+// GET /entries - Fetch entries (Protected)
+app.get('/entries', authenticateToken, (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
 
-    // Sort by date descending (newest first)
+    // Sort by date descending
     const sortedEntries = [...weatherEntries].sort((a, b) =>
         new Date(b.date).getTime() - new Date(a.date).getTime()
     );
@@ -79,11 +121,10 @@ app.get('/entries', (req, res) => {
     });
 });
 
-// POST /entries - Add a new entry
-app.post('/entries', (req, res) => {
+// POST /entries - Add a new entry (Protected)
+app.post('/entries', authenticateToken, (req, res) => {
     const { date, temperature, description, photoUrl, coords } = req.body;
 
-    // Validation
     if (!date || temperature === undefined || !description || !coords) {
         return res.status(400).json({
             error: 'Missing required fields: date, temperature, description, coords'
@@ -101,32 +142,28 @@ app.post('/entries', (req, res) => {
 
     weatherEntries.push(newEntry);
 
-    // Emit WebSocket event to all connected clients
     io.emit('entry_added', newEntry);
 
     res.status(201).json(newEntry);
 });
 
-// PUT /entries/:id - Update an existing entry
-app.put('/entries/:id', (req, res) => {
+// PUT /entries/:id - Update an existing entry (Protected)
+app.put('/entries/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
     const { date, temperature, description, photoUrl, coords } = req.body;
 
-    // Find the entry index
     const entryIndex = weatherEntries.findIndex(entry => entry.id === id);
 
     if (entryIndex === -1) {
         return res.status(404).json({ error: 'Entry not found' });
     }
 
-    // Validation
     if (!date || temperature === undefined || !description || !coords) {
         return res.status(400).json({
             error: 'Missing required fields: date, temperature, description, coords'
         });
     }
 
-    // Update the entry
     const updatedEntry = {
         id,
         date,
@@ -138,18 +175,15 @@ app.put('/entries/:id', (req, res) => {
 
     weatherEntries[entryIndex] = updatedEntry;
 
-    // Emit WebSocket event to all connected clients
     io.emit('entry_updated', updatedEntry);
 
     res.json(updatedEntry);
 });
 
-// Health check endpoint
+// Health check (Public)
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', entries: weatherEntries.length });
 });
-
-const PORT = process.env.PORT || 3001;
 
 server.listen(PORT, () => {
     console.log(`🌤️  Weather Journal Server running on port ${PORT}`);

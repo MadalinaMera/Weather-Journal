@@ -29,10 +29,18 @@ class ApiService {
         return this.socket;
     }
 
-    // Fetch paginated entries
+    // 1. Update getEntries
     async getEntries(page: number = 1, limit: number = 10): Promise<PaginatedResponse> {
+        const token = localStorage.getItem('jwt_token'); // <--- GET TOKEN HERE
+
         try {
-            const response = await fetch(`${API_URL}/entries?page=${page}&limit=${limit}`);
+            const response = await fetch(`${API_URL}/entries?page=${page}&limit=${limit}`, {
+                method: 'GET', // Explicitly state method (good practice)
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` // <--- ADD HEADER
+                }
+            });
             if (!response.ok) {
                 throw new Error('Failed to fetch entries');
             }
@@ -43,13 +51,16 @@ class ApiService {
         }
     }
 
-    // Add a new entry
+    // 2. Update addEntry
     async addEntry(entry: Omit<WeatherEntry, 'id'>): Promise<WeatherEntry> {
+        const token = localStorage.getItem('jwt_token'); // <--- GET TOKEN HERE
+
         try {
             const response = await fetch(`${API_URL}/entries`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` // <--- ADD HEADER
                 },
                 body: JSON.stringify(entry),
             });
@@ -65,13 +76,16 @@ class ApiService {
         }
     }
 
-    // Update an existing entry
+    // 3. Update updateEntry
     async updateEntry(id: string, entry: Omit<WeatherEntry, 'id'>): Promise<WeatherEntry> {
+        const token = localStorage.getItem('jwt_token'); // <--- GET TOKEN HERE
+
         try {
             const response = await fetch(`${API_URL}/entries/${id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` // <--- ADD HEADER
                 },
                 body: JSON.stringify(entry),
             });
@@ -83,6 +97,28 @@ class ApiService {
             return await response.json();
         } catch (error) {
             console.error('Error updating entry:', error);
+            throw error;
+        }
+    }
+
+    async login(username: string, password: string): Promise<{ token: string; username: string }> {
+        try {
+            const response = await fetch(`${API_URL}/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, password }),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Login failed');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Login error:', error);
             throw error;
         }
     }

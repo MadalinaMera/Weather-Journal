@@ -9,7 +9,7 @@ import {
     IonInput,
     IonTextarea,
     IonItem,
-    IonLabel,
+    // IonLabel, // Removed
     IonText,
     IonIcon,
     useIonToast
@@ -23,10 +23,12 @@ import './EntryModal.css';
 interface EntryModalProps {
     onDismiss: () => void;
     onSave: () => void;
-    entry?: WeatherEntry; // Optional entry for edit mode
+    entry?: WeatherEntry;
+    customSaveHandler?: (data: any) => Promise<void>;
 }
 
-const EntryModal: React.FC<EntryModalProps> = ({ onDismiss, onSave, entry }) => {
+const EntryModal: React.FC<EntryModalProps> = ({ onDismiss, onSave, entry, customSaveHandler }) => {
+    // ... (keep all your state and logic functions exactly the same) ...
     const [temperature, setTemperature] = useState<string>('');
     const [description, setDescription] = useState<string>('');
     const [photoUrl, setPhotoUrl] = useState<string>('');
@@ -89,27 +91,29 @@ const EntryModal: React.FC<EntryModalProps> = ({ onDismiss, onSave, entry }) => 
             return;
         }
 
+        const entryData = {
+            date: entry ? entry.date : new Date().toISOString(),
+            temperature: tempNum,
+            description,
+            photoUrl: photoUrl || undefined,
+            coords
+        };
+
         setLoading(true);
+
         try {
-            const entryData = {
-                date: entry ? entry.date : new Date().toISOString(), // Keep original date if editing
-                temperature: tempNum,
-                description,
-                photoUrl: photoUrl || undefined,
-                coords
-            };
-
-            if (entry) {
-                // Update existing entry
-                await apiService.updateEntry(entry.id, entryData);
-                showToast('Entry updated successfully!', 'success');
+            if (customSaveHandler) {
+                await customSaveHandler(entryData);
             } else {
-                // Create new entry
-                await apiService.addEntry(entryData);
-                showToast('Entry saved successfully!', 'success');
+                if (entry) {
+                    await apiService.updateEntry(entry.id, entryData);
+                    showToast('Entry updated successfully!', 'success');
+                } else {
+                    await apiService.addEntry(entryData);
+                    showToast('Entry saved successfully!', 'success');
+                }
+                onSave();
             }
-
-            onSave();
         } catch (error) {
             console.error('Error saving entry:', error);
             showToast('Failed to save entry', 'danger');
@@ -143,37 +147,43 @@ const EntryModal: React.FC<EntryModalProps> = ({ onDismiss, onSave, entry }) => 
                             <h3 className="section-title">Weather Details</h3>
                         </IonText>
 
+                        {/* UPDATED: Modern Syntax with label slot for HTML content */}
                         <IonItem className="form-item">
-                            <IonLabel position="stacked" className="form-label">
-                                Temperature (°C) <span className="required">*</span>
-                            </IonLabel>
                             <IonInput
+                                labelPlacement="stacked"
                                 type="number"
                                 value={temperature}
                                 onIonChange={(e) => setTemperature(e.detail.value!)}
                                 placeholder="e.g., 22"
                                 className="form-input"
-                            />
+                            >
+                                <div slot="label" className="form-label">
+                                    Temperature (°C) <span className="required">*</span>
+                                </div>
+                            </IonInput>
                         </IonItem>
 
+                        {/* UPDATED: Modern Syntax for Textarea */}
                         <IonItem className="form-item">
-                            <IonLabel position="stacked" className="form-label">
-                                Description <span className="required">*</span>
-                            </IonLabel>
                             <IonTextarea
+                                labelPlacement="stacked"
                                 value={description}
                                 onIonChange={(e) => setDescription(e.detail.value!)}
                                 placeholder="Describe the weather conditions..."
                                 rows={4}
                                 className="form-textarea"
-                            />
+                            >
+                                <div slot="label" className="form-label">
+                                    Description <span className="required">*</span>
+                                </div>
+                            </IonTextarea>
                         </IonItem>
 
+                        {/* UPDATED: Modern Syntax for Photo URL */}
                         <IonItem className="form-item">
-                            <IonLabel position="stacked" className="form-label">
-                                Photo URL (optional)
-                            </IonLabel>
                             <IonInput
+                                label="Photo URL (optional)"
+                                labelPlacement="stacked"
                                 type="url"
                                 value={photoUrl}
                                 onIonChange={(e) => setPhotoUrl(e.detail.value!)}
