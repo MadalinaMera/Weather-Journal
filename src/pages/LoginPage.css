@@ -1,0 +1,271 @@
+.login-content {
+    --background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.login-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 2rem;
+    animation: fadeIn 0.6s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 3rem;
+    animation: slideDown 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.login-logo {
+    font-size: 5rem;
+    color: white;
+    margin-bottom: 1rem;
+    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.25));
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-15px);
+    }
+}
+
+.login-title {
+    font-family: 'Poppins', -apple-system, sans-serif;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: white;
+    margin: 0 0 0.5rem 0;
+    text-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    letter-spacing: -0.5px;
+}
+
+.login-subtitle {
+    font-family: 'Poppins', -apple-system, sans-serif;
+    font-size: 1.1rem;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.95);
+    margin: 0;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.login-card {
+    width: 100%;
+    max-width: 420px;
+    border-radius: 28px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+    animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+    overflow: hidden;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(50px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.login-card ion-card-content {
+    padding: 2.5rem;
+    background: white;
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.login-item {
+    --background: #f8f9fa;
+    --border-radius: 14px;
+    --padding-start: 1.25rem;
+    --padding-end: 1.25rem;
+    --padding-top: 0.75rem;
+    --padding-bottom: 0.75rem;
+    margin-bottom: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s ease;
+}
+
+.login-item:hover {
+    --background: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.login-item:focus-within {
+    --background: white;
+    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
+}
+
+.login-item ion-label {
+    font-family: 'Poppins', -apple-system, sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #475569;
+    margin-bottom: 0.5rem;
+}
+
+.login-item ion-input {
+    font-family: 'Poppins', -apple-system, sans-serif;
+    font-size: 1rem;
+    --placeholder-color: #94a3b8;
+    --placeholder-opacity: 1;
+}
+
+.login-button {
+    font-family: 'Poppins', -apple-system, sans-serif;
+    font-weight: 600;
+    font-size: 1.1rem;
+    --background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --border-radius: 14px;
+    --padding-top: 1.25rem;
+    --padding-bottom: 1.25rem;
+    --box-shadow: 0 8px 24px rgba(102, 126, 234, 0.35);
+    margin-top: 0.75rem;
+    text-transform: none;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+}
+
+.login-button:hover:not([disabled]) {
+    transform: translateY(-3px);
+    --box-shadow: 0 12px 32px rgba(102, 126, 234, 0.45);
+}
+
+.login-button:active:not([disabled]) {
+    transform: translateY(-1px);
+    --box-shadow: 0 8px 24px rgba(102, 126, 234, 0.35);
+}
+
+.login-button[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.login-button ion-icon {
+    font-size: 1.5rem;
+}
+
+.login-hint {
+    text-align: center;
+    margin-top: 1.75rem;
+    padding: 1.25rem;
+    background: rgba(102, 126, 234, 0.08);
+    border-radius: 12px;
+    border: 1px dashed rgba(102, 126, 234, 0.2);
+}
+
+.login-hint p {
+    font-family: 'Poppins', -apple-system, sans-serif;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: #64748b;
+    margin: 0;
+}
+
+.login-hint strong {
+    font-weight: 600;
+    color: #667eea;
+}
+
+/* Additional floating decoration */
+.login-container::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+    animation: pulse 8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 0.3;
+    }
+    50% {
+        transform: scale(1.1);
+        opacity: 0.5;
+    }
+}
+
+/* Responsive design */
+@media (max-width: 576px) {
+    .login-container {
+        padding: 1.5rem;
+    }
+
+    .login-logo {
+        font-size: 4rem;
+    }
+
+    .login-title {
+        font-size: 2rem;
+    }
+
+    .login-subtitle {
+        font-size: 1rem;
+    }
+
+    .login-header {
+        margin-bottom: 2rem;
+    }
+
+    .login-card {
+        max-width: 100%;
+        border-radius: 24px;
+    }
+
+    .login-card ion-card-content {
+        padding: 2rem 1.5rem;
+    }
+
+    .login-hint {
+        font-size: 0.8rem;
+    }
+}
+
+/* Dark mode support (optional) */
+@media (prefers-color-scheme: dark) {
+    .login-item {
+        --background: rgba(255, 255, 255, 0.08);
+    }
+
+    .login-item ion-label {
+        color: #cbd5e1;
+    }
+}
