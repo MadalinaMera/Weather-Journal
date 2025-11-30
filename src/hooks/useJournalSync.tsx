@@ -7,17 +7,17 @@ import { v4 as uuidv4 } from 'uuid';
 const STORAGE_KEY = 'journal_entries';
 const QUEUE_KEY = 'sync_queue';
 
-// Define what a sync item looks like
 interface SyncItem {
     type: 'ADD' | 'UPDATE';
     data: Omit<WeatherEntry, 'id'>;
-    id?: string; // Only for UPDATE
+    id?: string;
 }
 
 export const useJournalSync = () => {
     const [entries, setEntries] = useState<WeatherEntry[]>([]);
     const [isOnline, setIsOnline] = useState<boolean>(true);
 
+    // 1. Load Data
     const loadEntries = useCallback(async () => {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
@@ -38,27 +38,67 @@ export const useJournalSync = () => {
         }
     }, []);
 
-    // 1. Create (ADD) Logic
+    // 2. Setup WebSocket Listeners
+    useEffect(() => {
+        let socket: any = null;
+
+        if (isOnline) {
+            socket = apiService.initSocket();
+
+            // Listen for new entries
+            socket.on('entry_added', (newEntry: WeatherEntry) => {
+                setEntries(prev => {
+                    // Prevent duplicates if we just added it ourselves
+                    if (prev.some(e => e.id === newEntry.id)) return prev;
+                    const updated = [newEntry, ...prev];
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+                    return updated;
+                });
+            });
+
+            // Listen for updates
+            socket.on('entry_updated', (updatedEntry: WeatherEntry) => {
+                setEntries(prev => {
+                    const updated = prev.map(entry =>
+                        entry.id === updatedEntry.id ? updatedEntry : entry
+                    );
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+                    return updated;
+                });
+            });
+        }
+
+        // Cleanup listeners on unmount or offline
+        return () => {
+            if (socket) {
+                socket.off('entry_added');
+                socket.off('entry_updated');
+            }
+        };
+    }, [isOnline]);
+
+    // 3. Create Entry Logic
     const createEntry = async (entryData: Omit<WeatherEntry, 'id'>) => {
         const status = await Network.getStatus();
 
         if (status.connected) {
             const newEntry = await apiService.addEntry(entryData);
-            const updated = [newEntry, ...entries];
-            setEntries(updated);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+            setEntries(prev => {
+                const updated = [newEntry, ...prev];
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+                return updated;
+            });
             return true;
         } else {
-            // Offline: Add to Queue
             const tempId = uuidv4();
             const offlineEntry: WeatherEntry = { ...entryData, id: tempId };
 
-            // Optimistic UI Update
-            const updated = [offlineEntry, ...entries];
-            setEntries(updated);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+            setEntries(prev => {
+                const updated = [offlineEntry, ...prev];
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+                return updated;
+            });
 
-            // Add to Queue as 'ADD' operation
             const queue: SyncItem[] = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
             queue.push({ type: 'ADD', data: entryData });
             localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
@@ -67,25 +107,27 @@ export const useJournalSync = () => {
         }
     };
 
-    // 2. Update (EDIT) Logic
+    // 4. Update Entry Logic
     const updateEntry = async (id: string, entryData: Omit<WeatherEntry, 'id'>) => {
         const status = await Network.getStatus();
 
         if (status.connected) {
             const updatedEntry = await apiService.updateEntry(id, entryData);
-            const updated = entries.map(e => e.id === id ? updatedEntry : e);
-            setEntries(updated);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+            setEntries(prev => {
+                const updated = prev.map(e => e.id === id ? updatedEntry : e);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+                return updated;
+            });
             return true;
         } else {
-            // Offline: Optimistic UI Update
-            // We use the existing ID since we are just editing locally
             const updatedEntry: WeatherEntry = { ...entryData, id };
-            const updated = entries.map(e => e.id === id ? updatedEntry : e);
-            setEntries(updated);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 
-            // Add to Queue as 'UPDATE' operation
+            setEntries(prev => {
+                const updated = prev.map(e => e.id === id ? updatedEntry : e);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+                return updated;
+            });
+
             const queue: SyncItem[] = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
             queue.push({ type: 'UPDATE', id, data: entryData });
             localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
@@ -94,7 +136,7 @@ export const useJournalSync = () => {
         }
     };
 
-    // 3. Flush Queue (Handle both types)
+    // 5. Sync Queue
     const flushQueue = async () => {
         const queueString = localStorage.getItem(QUEUE_KEY);
         if (!queueString) return;
@@ -118,7 +160,7 @@ export const useJournalSync = () => {
         }
 
         localStorage.removeItem(QUEUE_KEY);
-        loadEntries();
+        loadEntries(); // Refresh from server to ensure IDs are synced
     };
 
     useEffect(() => {
