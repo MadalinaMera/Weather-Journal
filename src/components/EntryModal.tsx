@@ -24,7 +24,7 @@ interface EntryModalProps {
     onDismiss: () => void;
     onSave: () => void;
     entry?: WeatherEntry;
-    customSaveHandler?: (data: any) => Promise<void>;
+    customSaveHandler?: (data: any, id?: string) => Promise<void>;
 }
 
 const EntryModal: React.FC<EntryModalProps> = ({ onDismiss, onSave, entry, customSaveHandler }) => {
@@ -103,7 +103,7 @@ const EntryModal: React.FC<EntryModalProps> = ({ onDismiss, onSave, entry, custo
 
         try {
             if (customSaveHandler) {
-                await customSaveHandler(entryData);
+                await customSaveHandler(entryData,entry?.id);
             } else {
                 if (entry) {
                     await apiService.updateEntry(entry.id, entryData);

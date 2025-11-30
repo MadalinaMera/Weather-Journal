@@ -14,7 +14,7 @@ import apiService from '../api';
 import './JournalPage.css';
 
 const JournalPage: React.FC = () => {
-    const { entries, isOnline, saveEntry } = useJournalSync();
+    const { entries, isOnline, createEntry, updateEntry } = useJournalSync();
     const { logout } = useAuth();
     const [selectedEntry, setSelectedEntry] = useState<WeatherEntry | undefined>(undefined);
     const [present] = useIonToast();
@@ -40,10 +40,19 @@ const JournalPage: React.FC = () => {
         onDismiss: () => { dismissModal(); setSelectedEntry(undefined); },
         onSave: handleEntrySaved,
         entry: selectedEntry,
-        customSaveHandler: async (data: any) => {
-            const online = await saveEntry(data);
+        customSaveHandler: async (data: any, id?: string) => {
+            let online = false;
+
+            if (id) {
+                // If ID exists, it's an UPDATE
+                online = await updateEntry(id, data);
+            } else {
+                // If no ID, it's a CREATE
+                online = await createEntry(data);
+            }
+
             showToast(
-                online ? 'Entry saved!' : 'Saved to offline queue',
+                online ? 'Success!' : 'Saved to offline queue',
                 online ? 'success' : 'warning'
             );
             dismissModal();
@@ -91,7 +100,7 @@ const JournalPage: React.FC = () => {
                             <IonCard
                                 key={entry.id || index}
                                 className="entry-card clickable"
-                                onClick={() => openEditModal(entry)}
+                                onClick={(e) =>{ (e.currentTarget as HTMLElement).blur(); openEditModal(entry)}}
                                 button
                             >
                                 <IonCardContent>
