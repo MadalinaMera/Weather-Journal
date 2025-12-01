@@ -1,284 +1,153 @@
-# Weather Journal App 🌤️
+# 🌤️ Ionic Weather Journal App
 
-A beautiful, full-stack **IONIC REACT** Weather Journal application built with Capacitor and Node.js for a university assignment.
+A full-stack, cross-platform mobile application built with **Ionic React** and **Node.js**. This app allows users to check real-time weather forecasts and maintain a personal weather journal with photos and geolocation data.
 
-## 📋 Features
+It features robust **offline capabilities**, **real-time synchronization**, and **native device integration** (Camera & GPS).
 
-### Tab 1: Forecast
-- Displays real-time weather data from OpenWeatherMap API
-- Beautiful gradient backgrounds based on weather conditions
-- Animated weather icons with floating effects
-- Current temperature, feels-like temperature, and humidity
-- Geolocation support with fallback to default location
-- Mock data mode for testing without API key
+## ✨ Features
 
-### Tab 2: Journal
-- Master-detail view with infinite scroll
-- Real-time updates via WebSocket (Socket.io)
-- Add new weather entries with location capture
-- Paginated list of weather journal entries
-- Beautiful card-based UI with smooth animations
-- Entry details include: date, temperature, description, photo, and coordinates
+### 1\. 🌍 Weather Forecast (Tab 1)
+
+* **Live Weather Data:** Fetches real-time weather (Temperature, Humidity, Feels Like) from the OpenWeatherMap API.
+* **City Search:** Search for any city worldwide to check its local weather.
+* **Device Location:** One-tap button to reset the forecast to your current GPS coordinates.
+* **Dynamic UI:** Beautiful glassmorphism design with dynamic backgrounds that change based on weather conditions (Rain, Snow, Clear, Clouds).
+
+### 2\. 📖 Weather Journal (Tab 2)
+
+* **Personal Diary:** Create entries to record your experience of the weather.
+* **Infinite Scroll:** Efficiently loads entries in batches as you scroll (Pagination).
+* **Real-time Updates:** Uses **Socket.io** to instantly push new entries or edits to all connected devices without refreshing.
+* **Map View:** View the exact location of an entry on an interactive Leaflet map.
+
+### 3\. 📸 Native Device Features
+
+* **Camera Integration:** Capture photos directly using the device camera or upload from the gallery.
+* **Geolocation:** Automatically tags journal entries with your precise latitude and longitude.
+* **Offline Queue:** If the internet is lost, entries are saved locally and automatically synced to the server when the connection is restored.
 
 ## 🛠️ Tech Stack
 
-**Frontend:**
-- **Ionic 7.5+ with React**
-- TypeScript
-- Socket.io Client
-- Capacitor for native features (Geolocation)
-- React Router
+### Frontend (Client)
 
-**Backend:**
-- Node.js
-- Express
-- Socket.io (WebSocket)
-- In-memory storage (array)
+* **Framework:** [Ionic 7](https://ionicframework.com/) with [React](https://react.dev/)
+* **Language:** TypeScript
+* **State Management:** React Hooks (Custom `useJournalSync` hook)
+* **Native Wrapper:** Capacitor (Camera, Geolocation, Network plugins)
+* **Maps:** Leaflet & React-Leaflet
+* **Styling:** CSS Modules & Ionic Utility Classes
 
-## 📁 Project Structure
+### Backend (Server)
 
-```
-weather-journal/
-├── ionic.config.json        # Ionic configuration
-├── capacitor.config.ts      # Capacitor mobile config
-├── tsconfig.json           # TypeScript configuration
-├── package.json            # Frontend dependencies
-│
-├── public/                 # Static assets
-│   ├── index.html
-│   └── manifest.json
-│
-├── server/                 # Backend
-│   ├── server.js          # Express + Socket.io server
-│   └── package.json       # Backend dependencies
-│
-└── src/                   # Frontend source
-    ├── App.tsx           # Main app with IonTabs
-    ├── index.tsx         # React entry point
-    ├── types.ts          # TypeScript interfaces
-    ├── api.ts            # API service layer
-    ├── components/
-    │   ├── EntryModal.tsx
-    │   └── EntryModal.css
-    ├── pages/
-    │   ├── ForecastPage.tsx
-    │   ├── ForecastPage.css
-    │   ├── JournalPage.tsx
-    │   └── JournalPage.css
-    └── theme/
-        └── variables.css  # Ionic theme variables
-```
+* **Runtime:** Node.js & Express
+* **Database:** PostgreSQL (Persists text and Base64 image data)
+* **Real-time:** Socket.io (WebSockets)
+* **Authentication:** JSON Web Tokens (JWT) & Bcrypt (Password hashing)
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-- Node.js (v16 or higher)
-- npm or yarn
-- **Ionic CLI** (install globally: `npm install -g @ionic/cli`)
-- (Optional) OpenWeatherMap API key for real weather data
+* Node.js (v16+)
+* PostgreSQL installed and running locally
+* Ionic CLI (`npm install -g @ionic/cli`)
 
-### Backend Setup
+### 1\. Database Setup
 
-1. Navigate to the server directory:
-```bash
-cd server
+Create a PostgreSQL database named `weather_journal` and run the following SQL to create the required tables:
+
+```sql
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE entries (
+    id VARCHAR(255) PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id),
+    date TIMESTAMP,
+    temperature NUMERIC,
+    description TEXT,
+    photo_url TEXT, -- Must be TEXT to hold Base64 strings
+    coords TEXT     -- Stores JSON stringified coordinates
+);
 ```
 
-2. Install dependencies:
-```bash
-npm install
-```
+### 2\. Backend Setup
 
-3. Start the backend server:
-```bash
-npm start
-```
+1.  Navigate to the server directory:
 
-The server will run on `http://localhost:3001`
+    ```bash
+    cd server
+    npm install
+    ```
 
-### Frontend Setup
+2.  Configure your database connection in `server.js`:
 
-1. Navigate to the project root:
-```bash
-cd weather-journal
-```
+    ```javascript
+    const pool = new Pool({
+        user: 'your_postgres_user',
+        host: 'localhost',
+        database: 'weather_journal',
+        password: 'your_postgres_password',
+        port: 5432,
+    });
+    ```
 
-2. Install dependencies:
-```bash
-npm install
-```
+3.  Start the server:
 
-3. (Optional) Add your OpenWeatherMap API key:
-   - Open `src/api.ts`
-   - Replace `'YOUR_API_KEY_HERE'` with your actual API key
-   - Get a free key at: https://openweathermap.org/api
+    ```bash
+    npm start
+    ```
 
-4. Start the **Ionic development server**:
-```bash
-ionic serve
-```
+    *Server runs on `http://localhost:3001`*
 
-Or alternatively:
-```bash
-npm start
-```
+### 3\. Frontend Setup
 
-The app will run on `http://localhost:8100` (Ionic default port)
+1.  Navigate to the project root:
 
-### Testing Without API Key
+    ```bash
+    cd weather-journal
+    npm install
+    ```
 
-The app includes mock weather data, so you can test it immediately without an API key. It will automatically use mock data when no API key is configured.
+2.  Add your OpenWeatherMap API key in `src/api.ts`:
 
-## 📱 Building for Mobile
+    ```typescript
+    const OPENWEATHER_API_KEY = 'YOUR_API_KEY_HERE';
+    ```
 
-### iOS
+3.  Start the development server:
 
-1. Build the web app:
-```bash
-ionic build
-```
+    ```bash
+    ionic serve
+    ```
 
-2. Add iOS platform:
-```bash
-ionic cap add ios
-```
-
-3. Sync and open in Xcode:
-```bash
-ionic cap sync
-ionic cap open ios
-```
-
-### Android
-
-1. Build the web app:
-```bash
-ionic build
-```
-
-2. Add Android platform:
-```bash
-ionic cap add android
-```
-
-3. Sync and open in Android Studio:
-```bash
-ionic cap sync
-ionic cap open android
-```
+    *App runs on `http://localhost:8100`*
 
 ## 🔌 API Endpoints
 
-### Backend REST API
+| Method | Endpoint | Description                                 | Protected? |
+| :--- | :--- |:--------------------------------------------| :--- |
+| `POST` | `/register` | Create a new user account                   | No |
+| `POST` | `/login` | Log in and receive JWT                      | No |
+| `GET` | `/entries` | Fetch paginated entries (`?page=1&limit=5`) | **Yes** |
+| `POST` | `/entries` | Create a new journal entry                  | **Yes** |
+| `PUT` | `/entries/:id` | Update an existing entry                    | **Yes** |
 
-- `GET /entries?page=1&limit=10` - Fetch paginated journal entries
-- `POST /entries` - Add a new journal entry
-- `GET /health` - Health check endpoint
+## 💡 Key Logic Explained
 
-### WebSocket Events
+**Offline Synchronization:**
+The app monitors network status using Capacitor's Network plugin.
 
-- `entry_added` - Emitted when a new entry is added to the journal
+1.  If **Online**: Entries are sent directly to the PostgreSQL database.
+2.  If **Offline**: Entries are stored in the browser's `localStorage` and added to a sync queue.
+3.  When **Connection Restores**: The app automatically flushes the queue, sending all offline entries to the backend.
 
-## 📊 Data Model
-
-```typescript
-interface WeatherEntry {
-  id: string;
-  date: string;           // ISO 8601 format
-  temperature: number;    // Celsius
-  description: string;
-  photoUrl?: string;
-  coords: {
-    latitude: number;
-    longitude: number;
-  };
-}
-```
-
-## 🎨 Design Features
-
-- **Modern Gradient UI** with smooth animations
-- **Poppins Font** for clean, modern typography
-- **Responsive Design** that works on mobile and desktop
-- **Custom Tab Bar** with Ionic styling
-- **Beautiful Cards** with hover effects and shadows
-- **Real-time Updates** via WebSocket
-- **Infinite Scroll** for seamless browsing
-- **Ionic Components** throughout (IonPage, IonHeader, IonCard, etc.)
-
-## 🧪 Testing the App
-
-1. **Forecast Tab**: 
-   - View current weather (mock or real)
-   - Tap refresh button to update data
-   - Check different weather conditions
-
-2. **Journal Tab**:
-   - Add new entries using the FAB button
-   - Scroll to load more entries (infinite scroll)
-   - Watch for real-time updates when entries are added
-
-## 🔧 Configuration
-
-### Changing Backend URL
-
-If your backend runs on a different port or host, update the `API_URL` in `src/api.ts`:
-
-```typescript
-const API_URL = 'http://your-backend-url:port';
-```
-
-### Adjusting Pagination
-
-In `src/pages/JournalPage.tsx`, you can adjust the pagination limit:
-
-```typescript
-const response = await apiService.getEntries(pageNum, 20); // Load 20 entries per page
-```
-
-## 📝 Ionic CLI Commands
-
-- `ionic serve` - Start development server
-- `ionic build` - Build the app for production
-- `ionic cap add ios` - Add iOS platform
-- `ionic cap add android` - Add Android platform
-- `ionic cap sync` - Sync web code to native projects
-- `ionic cap open ios` - Open Xcode
-- `ionic cap open android` - Open Android Studio
-
-## 📝 Notes
-
-- This is a **proper Ionic React project** with all Ionic components
-- The app uses **in-memory storage** for simplicity. Data will be lost when the server restarts.
-- Location permissions are required for accurate geolocation.
-- The app provides a fallback to New York City coordinates if geolocation fails.
-- WebSocket connection is established automatically when visiting the Journal tab.
-- Uses **Ionic's IonTabs**, **IonPage**, **IonHeader**, etc. for true Ionic architecture
-
-## 🎓 Assignment Requirements Checklist
-
-✅ **Ionic React** application (not just React)  
-✅ Tab-based application with IonTabs (2 tabs)  
-✅ Real weather API integration (OpenWeatherMap)  
-✅ Node.js backend with Express  
-✅ WebSocket (Socket.io) for real-time updates  
-✅ Pagination support (GET /entries?page=1&limit=10)  
-✅ REST API (GET and POST endpoints)  
-✅ Master-Detail view (Journal list + Entry modal)  
-✅ Infinite scroll with IonInfiniteScroll  
-✅ TypeScript types and interfaces  
-✅ Modern, responsive UI with Ionic components  
-✅ Capacitor for native features (Geolocation)  
+**Image Handling:**
+Images are captured as Base64 strings to allow for easy offline storage and universal compatibility without needing a separate file storage bucket (S3/Cloudinary) for this prototype.
 
 ## 📄 License
 
-This project is created for educational purposes as part of a university assignment.
-
-## 🤝 Contributing
-
-This is an assignment project, but feedback and suggestions are welcome!
-
----
-
-Built with ❤️ using **Ionic React** and Node.js
+Created for educational purposes.
