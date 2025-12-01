@@ -122,7 +122,7 @@ app.get('/entries', authenticateToken, async (req, res) => {
 
         const formattedEntries = result.rows.map(row => ({
             ...row,
-            photoUrl: row.photoUrl,
+            photoUrl: row.photo_url,
             coords: typeof row.coords === 'string' ? JSON.parse(row.coords) : row.coords
         }));
         res.json({
