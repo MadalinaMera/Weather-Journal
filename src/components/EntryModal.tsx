@@ -9,16 +9,34 @@ import {
     IonInput,
     IonTextarea,
     IonItem,
-    // IonLabel, // Removed
+    IonLabel,
     IonText,
     IonIcon,
     useIonToast
 } from '@ionic/react';
-import { close, checkmark, locationOutline } from 'ionicons/icons';
+import { close, checkmark, locationOutline, cameraOutline, imageOutline } from 'ionicons/icons';
 import { Geolocation } from '@capacitor/geolocation';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import L from 'leaflet';
 import apiService from '../api';
 import { WeatherEntry } from '../types';
 import './EntryModal.css';
+import 'leaflet/dist/leaflet.css';
+
+// --- Leaflet Icon Fix ---
+// This fixes the missing marker icon issue in React Leaflet
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+
+let DefaultIcon = L.icon({
+    iconUrl: icon,
+    shadowUrl: iconShadow,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41]
+});
+L.Marker.prototype.options.icon = DefaultIcon;
+// ------------------------
 
 interface EntryModalProps {
     onDismiss: () => void;
@@ -27,8 +45,44 @@ interface EntryModalProps {
     customSaveHandler?: (data: any, id?: string) => Promise<void>;
 }
 
+// Helper component to handle map clicks
+const LocationMarker: React.FC<{
+    coords: { latitude: number; longitude: number } | null,
+    setCoords: (coords: { latitude: number; longitude: number }) => void
+}> = ({ coords, setCoords }) => {
+    useMapEvents({
+        click(e) {
+            setCoords({
+                latitude: e.latlng.lat,
+                longitude: e.latlng.lng
+            });
+        },
+    });
+
+    return coords ? (
+        <Marker position={[coords.latitude, coords.longitude]} />
+    ) : null;
+};
+
+// This component handles re-centering and fixing layout glitches
+const MapUpdater: React.FC<{ center: [number, number] }> = ({ center }) => {
+    const map = useMap();
+
+    useEffect(() => {
+        // 1. Fly to the new center when coordinates change
+        map.setView(center, map.getZoom());
+
+        // 2. Fix the "Grey Box" issue by forcing a resize calculation
+        // We wait a tick to ensure the modal animation is done/DOM is ready
+        setTimeout(() => {
+            map.invalidateSize();
+        }, 100);
+    }, [center, map]);
+
+    return null;
+};
+
 const EntryModal: React.FC<EntryModalProps> = ({ onDismiss, onSave, entry, customSaveHandler }) => {
-    // ... (keep all your state and logic functions exactly the same) ...
     const [temperature, setTemperature] = useState<string>('');
     const [description, setDescription] = useState<string>('');
     const [photoUrl, setPhotoUrl] = useState<string>('');
@@ -36,7 +90,6 @@ const EntryModal: React.FC<EntryModalProps> = ({ onDismiss, onSave, entry, custo
     const [loading, setLoading] = useState<boolean>(false);
     const [present] = useIonToast();
 
-    // Populate form if editing existing entry
     useEffect(() => {
         if (entry) {
             setTemperature(entry.temperature.toString());
@@ -55,7 +108,27 @@ const EntryModal: React.FC<EntryModalProps> = ({ onDismiss, onSave, entry, custo
         });
     };
 
+    const takePicture = async () => {
+        try {
+            const image = await Camera.getPhoto({
+                quality: 90,
+                allowEditing: false,
+                resultType: CameraResultType.Uri, // Use Uri for better web/mobile compatibility
+                source: CameraSource.Camera
+            });
+
+            if (image.webPath) {
+                setPhotoUrl(image.webPath);
+                showToast('Photo captured!', 'success');
+            }
+        } catch (error) {
+            console.error('Camera error:', error);
+            // Don't show error if user just closed the camera
+        }
+    };
+
     const getCurrentLocation = async () => {
+        setLoading(true);
         try {
             const position = await Geolocation.getCurrentPosition();
             const newCoords = {
@@ -66,15 +139,16 @@ const EntryModal: React.FC<EntryModalProps> = ({ onDismiss, onSave, entry, custo
             showToast('Location captured successfully', 'success');
         } catch (error) {
             console.error('Error getting location:', error);
-            // Use default location if geolocation fails
+            // Default to NYC if permission denied or error
             const defaultCoords = { latitude: 40.7128, longitude: -74.0060 };
             setCoords(defaultCoords);
-            showToast('Using default location', 'warning');
+            showToast('Using default location (Permission denied?)', 'warning');
+        } finally {
+            setLoading(false);
         }
     };
 
     const handleSave = async () => {
-        // Validation
         if (!temperature || !description) {
             showToast('Please fill in all required fields', 'warning');
             return;
@@ -103,7 +177,7 @@ const EntryModal: React.FC<EntryModalProps> = ({ onDismiss, onSave, entry, custo
 
         try {
             if (customSaveHandler) {
-                await customSaveHandler(entryData,entry?.id);
+                await customSaveHandler(entryData, entry?.id);
             } else {
                 if (entry) {
                     await apiService.updateEntry(entry.id, entryData);
@@ -142,12 +216,12 @@ const EntryModal: React.FC<EntryModalProps> = ({ onDismiss, onSave, entry, custo
 
             <IonContent className="modal-content">
                 <div className="modal-form">
+                    {/* --- WEATHER SECTION --- */}
                     <div className="form-section">
                         <IonText>
                             <h3 className="section-title">Weather Details</h3>
                         </IonText>
 
-                        {/* UPDATED: Modern Syntax with label slot for HTML content */}
                         <IonItem className="form-item">
                             <IonInput
                                 labelPlacement="stacked"
@@ -163,7 +237,6 @@ const EntryModal: React.FC<EntryModalProps> = ({ onDismiss, onSave, entry, custo
                             </IonInput>
                         </IonItem>
 
-                        {/* UPDATED: Modern Syntax for Textarea */}
                         <IonItem className="form-item">
                             <IonTextarea
                                 labelPlacement="stacked"
@@ -178,11 +251,41 @@ const EntryModal: React.FC<EntryModalProps> = ({ onDismiss, onSave, entry, custo
                                 </div>
                             </IonTextarea>
                         </IonItem>
+                    </div>
 
-                        {/* UPDATED: Modern Syntax for Photo URL */}
+                    {/* --- PHOTO SECTION --- */}
+                    <div className="form-section">
+                        <IonText>
+                            <h3 className="section-title">Photo</h3>
+                        </IonText>
+
+                        {photoUrl ? (
+                            <div className="photo-preview-container">
+                                <img src={photoUrl} alt="Captured" className="preview-image" />
+                                <IonButton
+                                    fill="clear"
+                                    color="danger"
+                                    onClick={() => setPhotoUrl('')}
+                                    size="small"
+                                >
+                                    Remove Photo
+                                </IonButton>
+                            </div>
+                        ) : (
+                            <IonButton
+                                expand="block"
+                                onClick={takePicture}
+                                className="camera-button"
+                            >
+                                <IonIcon icon={cameraOutline} slot="start" />
+                                Take Photo
+                            </IonButton>
+                        )}
+
+                        {/* Fallback input for manual URL if needed */}
                         <IonItem className="form-item">
                             <IonInput
-                                label="Photo URL (optional)"
+                                label="Or paste URL"
                                 labelPlacement="stacked"
                                 type="url"
                                 value={photoUrl}
@@ -193,6 +296,7 @@ const EntryModal: React.FC<EntryModalProps> = ({ onDismiss, onSave, entry, custo
                         </IonItem>
                     </div>
 
+                    {/* --- LOCATION & MAP SECTION --- */}
                     <div className="form-section">
                         <IonText>
                             <h3 className="section-title">Location</h3>
@@ -206,12 +310,12 @@ const EntryModal: React.FC<EntryModalProps> = ({ onDismiss, onSave, entry, custo
                                         <p className="location-coords">
                                             {coords.latitude.toFixed(4)}, {coords.longitude.toFixed(4)}
                                         </p>
-                                        <p className="location-status">Location captured</p>
+                                        <p className="location-status">Tap map to adjust</p>
                                     </IonText>
                                 </div>
                             ) : (
                                 <IonText color="medium">
-                                    <p className="location-prompt">Tap the button below to capture your current location</p>
+                                    <p className="location-prompt">Use the button below or tap the map</p>
                                 </IonText>
                             )}
 
@@ -222,8 +326,24 @@ const EntryModal: React.FC<EntryModalProps> = ({ onDismiss, onSave, entry, custo
                                 disabled={loading}
                             >
                                 <IonIcon icon={locationOutline} slot="start" />
-                                {coords ? 'Update Location' : 'Capture Location'}
+                                Use Current Location
                             </IonButton>
+
+                            {/* --- MAP CONTAINER --- */}
+                            <div className="map-container">
+                                <MapContainer
+                                    center={[coords?.latitude || 40.7128, coords?.longitude || -74.0060]}
+                                    zoom={13}
+                                    style={{ height: '100%', width: '100%' }}
+                                >
+                                    <TileLayer
+                                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                        attribution='&copy; OpenStreetMap contributors'
+                                    />
+                                    <LocationMarker coords={coords} setCoords={setCoords} />
+                                    <MapUpdater center={[coords?.latitude || 46.7695, coords?.longitude || 23.5898]} />
+                                </MapContainer>
+                            </div>
                         </div>
                     </div>
 
