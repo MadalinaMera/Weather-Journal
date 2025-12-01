@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
     IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonList, IonLabel,
     IonFab, IonFabButton, IonIcon, IonText, IonCard, IonCardContent, IonThumbnail, IonChip,
-    useIonModal, useIonToast, IonButton, IonNote, IonInfiniteScroll, IonInfiniteScrollContent
+    useIonModal, useIonToast, IonButton, IonInfiniteScroll, IonInfiniteScrollContent
 } from '@ionic/react';
 import { add, cloudyOutline, logOutOutline, cloudOfflineOutline, mapOutline } from 'ionicons/icons'; // Added mapOutline
 import { WeatherEntry } from '../types';

@@ -2,7 +2,23 @@
   --background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   --color: white;
 }
+.forecast-toolbar ion-searchbar {
+    --border-radius: 50px;
 
+    --background: rgba(255, 255, 255, 0.2);
+    --color: white;
+    --placeholder-color: rgba(255, 255, 255, 0.8);
+    --icon-color: white;
+
+    padding-top: 0;
+    padding-bottom: 12px;
+    padding-inline: 16px;
+    --box-shadow: none;
+}
+.forecast-toolbar ion-searchbar.searchbar-has-focus {
+    --background: rgba(255, 255, 255, 0.3);
+    --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
 .forecast-title {
   font-family: 'Poppins', -apple-system, sans-serif;
   font-weight: 600;
@@ -234,4 +250,58 @@
 .error-container p {
   font-family: 'Poppins', -apple-system, sans-serif;
   font-size: 1rem;
+}
+/* Search Results Container */
+.search-results-list {
+    position: absolute;
+    left: 0;
+    right: 0;
+    margin: 0.5rem 1rem; /* Add margin so it floats "inside" the page */
+    z-index: 1000;
+
+    /* Glassmorphism Style */
+    background: rgba(255, 255, 255, 0.9); /* Slightly transparent white */
+    backdrop-filter: blur(16px);           /* Blurs content behind it */
+    border-radius: 20px;                   /* Nice round corners */
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15); /* Soft shadow for depth */
+    overflow: hidden;                      /* Clips items to the rounded corners */
+}
+
+/* Individual Result Items */
+.search-result-item {
+    --background: transparent;             /* Let the glass list background show through */
+    --border-color: rgba(0, 0, 0, 0.05);   /* Very subtle dividers */
+    --padding-start: 1rem;
+    --min-height: 60px;
+    transition: all 0.2s ease;
+}
+
+/* Hover effect for desktop/mouse users */
+.search-result-item:hover {
+    --background: rgba(102, 126, 234, 0.1); /* Subtle primary color tint on hover */
+}
+
+/* Typography for results */
+.search-result-item h2 {
+    font-weight: 600;
+    font-size: 1rem;
+    color: #1e293b;
+    margin-bottom: 2px;
+}
+
+.search-result-item p {
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.location-reset-button {
+    --text-transform: none;
+    font-family: 'Poppins', -apple-system, sans-serif;
+    font-size: 0.9rem;
+    margin: 0 auto;
+    opacity: 0.8;
+}
+
+.location-reset-button:hover {
+    opacity: 1;
 }

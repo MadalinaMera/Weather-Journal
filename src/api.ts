@@ -4,6 +4,7 @@ import { WeatherEntry, PaginatedResponse, OpenWeatherResponse } from './types';
 const API_URL = 'http://localhost:3001';
 const OPENWEATHER_API_KEY = process.env.REACT_APP_OPENWEATHER_API_KEY ?? '';
 const OPENWEATHER_BASE_URL = 'https://api.openweathermap.org/data/2.5/weather';
+const GEO_API_URL = 'http://api.openweathermap.org/geo/1.0/direct';
 
 class ApiService {
     private socket: Socket | null = null;
@@ -191,7 +192,20 @@ class ApiService {
             return this.getMockWeatherData();
         }
     }
+    async searchCity(query: string): Promise<any[]> {
+        if (!OPENWEATHER_API_KEY) return [];
 
+        try {
+            // limit=5 means "give me the top 5 matching cities"
+            const response = await fetch(
+                `${GEO_API_URL}?q=${query}&limit=5&appid=${OPENWEATHER_API_KEY}`
+            );
+            return await response.json();
+        } catch (error) {
+            console.error('Error searching city:', error);
+            return [];
+        }
+    }
 
     // Disconnect socket
     disconnect() {
