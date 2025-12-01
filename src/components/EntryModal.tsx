@@ -111,15 +111,18 @@ const EntryModal: React.FC<EntryModalProps> = ({ onDismiss, onSave, entry, custo
     const takePicture = async () => {
         try {
             const image = await Camera.getPhoto({
-                quality: 90,
+                quality: 80,
                 allowEditing: false,
-                resultType: CameraResultType.Uri, // Use Uri for better web/mobile compatibility
+                resultType: CameraResultType.Base64,
+                saveToGallery: true,
                 source: CameraSource.Camera
             });
 
-            if (image.webPath) {
-                setPhotoUrl(image.webPath);
-                showToast('Photo captured!', 'success');
+            if (image.base64String) {
+                // Create a data URL for display and upload
+                const dataUrl = `data:image/jpeg;base64,${image.base64String}`;
+                setPhotoUrl(dataUrl);
+                showToast('Photo captured & saved to gallery!', 'success');
             }
         } catch (error) {
             console.error('Camera error:', error);

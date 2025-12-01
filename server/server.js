@@ -20,12 +20,13 @@ const JWT_SECRET = 'your-secret-key-change-this-in-production'; // Keep this sec
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 
 // In-memory storage
 // Users for authentication (In a real app, this would be a database)
 const users = [
-    { username: 'admin', password: 'password123' }
+    { username: 'admin', password: 'password123' },
+    { username: 'user1', password: '123' }
 ];
 
 let weatherEntries = [
@@ -82,8 +83,6 @@ io.on('connection', (socket) => {
 // Login Endpoint (Issues JWT)
 app.post('/login', (req, res) => {
     const { username, password } = req.body;
-
-    console.log(username, password);
     // Validate user (Simple check against in-memory array)
     const user = users.find(u => u.username === username && u.password === password);
 

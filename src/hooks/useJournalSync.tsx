@@ -84,6 +84,7 @@ export const useJournalSync = () => {
         if (status.connected) {
             const newEntry = await apiService.addEntry(entryData);
             setEntries(prev => {
+                if(prev.some(entry => entry.id === newEntry.id)) return prev;
                 const updated = [newEntry, ...prev];
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
                 return updated;
