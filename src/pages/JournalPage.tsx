@@ -34,7 +34,7 @@ const JournalPage: React.FC = () => {
 
     // --- ENTRY MODAL CONFIG ---
     const [presentEntryModal, dismissEntryModal] = useIonModal(EntryModal, {
-        onDismiss: () => { dismissEntryModal(); setSelectedEntry(undefined); },
+        onDismiss: () => { setSelectedEntry(undefined); },
         onSave: () => { dismissEntryModal(); setSelectedEntry(undefined); },
         entry: selectedEntry,
         customSaveHandler: async (data: any, id?: string) => {

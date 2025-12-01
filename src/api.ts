@@ -11,7 +11,12 @@ class ApiService {
     // Initialize WebSocket connection
     initSocket(): Socket {
         if (!this.socket) {
-            this.socket = io(API_URL);
+            const token = localStorage.getItem('jwt_token');
+            this.socket = io(API_URL, {
+                auth: {
+                    token: token
+                }
+            });
 
             this.socket.on('connect', () => {
                 console.log('✅ Connected to WebSocket server');
@@ -100,7 +105,7 @@ class ApiService {
             throw error;
         }
     }
-
+    // User login
     async login(username: string, password: string): Promise<{ token: string; username: string }> {
         try {
             const response = await fetch(`${API_URL}/login`, {
@@ -123,6 +128,18 @@ class ApiService {
         }
     }
 
+    // User Registration
+    async register(username: string, password: string): Promise<void> {
+        const response = await fetch(`${API_URL}/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password }),
+        });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Registration failed');
+        }
+    }
     // Mock weather data (use this until you add your API key)
     getMockWeatherData(): OpenWeatherResponse {
         const mockWeatherTypes = [

@@ -4,6 +4,7 @@ import apiService from '../api';
 interface AuthContextType {
     isAuthenticated: boolean;
     login: (username: string, password: string) => Promise<boolean>;
+    register: (username: string, password: string) => Promise<boolean>;
     logout: () => void;
     loading: boolean;
 }
@@ -11,6 +12,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
     isAuthenticated: false,
     login: async () => false,
+    register: async () => false,
     logout: () => {},
     loading: true,
 });
@@ -54,8 +56,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsAuthenticated(false);
     };
 
+    const register = async (username: string, password: string): Promise<boolean> => {
+        try {
+            await apiService.register(username, password);
+            // Automatically login after register
+            return await login(username, password);
+        } catch (error) {
+            console.error('Registration failed', error);
+            return false;
+        }
+    };
+
     return (
-        <AuthContext.Provider value={{ isAuthenticated, login, logout, loading }}>
+        <AuthContext.Provider value={{ isAuthenticated, login, register, logout, loading }}>
             {!loading && children}
         </AuthContext.Provider>
     );

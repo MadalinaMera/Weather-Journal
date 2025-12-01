@@ -3,28 +3,35 @@ import {
     IonContent, IonHeader, IonPage, IonTitle, IonToolbar,
     IonItem, IonInput, IonButton, IonIcon, useIonRouter, useIonToast, IonCard, IonCardContent, IonLabel
 } from '@ionic/react';
-import { logInOutline } from 'ionicons/icons';
+import { logInOutline, personAddOutline } from 'ionicons/icons';
 import { useAuth } from '../context/AuthContext';
 import './LoginPage.css';
 const LoginPage: React.FC = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-    const { login } = useAuth();
+    const [isRegistering, setIsRegistering] = useState(false);
+    const { login, register } = useAuth();
     const router = useIonRouter();
     const [present] = useIonToast();
 
-    const handleLogin = async () => {
+    const handleSubmit = async () => {
         if (!username.trim() || !password.trim()) {
-            present({ message: 'Please enter username and password', duration: 2000, color: 'warning', position: 'top' });
+            present({ message: 'Please enter username and password', duration: 2000, color: 'warning' });
             return;
         }
 
-        const success = await login(username, password);
+        let success;
+        if (isRegistering) {
+            success = await register(username, password);
+        } else {
+            success = await login(username, password);
+        }
 
         if (success) {
             router.push('/journal', 'root');
+            setUsername(''); setPassword('');
         } else {
-            present({ message: 'Invalid credentials', duration: 2000, color: 'danger', position: 'top' });
+            present({ message: isRegistering ? 'Registration failed (User exists?)' : 'Invalid credentials', duration: 2000, color: 'danger' });
         }
     };
 
@@ -65,10 +72,14 @@ const LoginPage: React.FC = () => {
 
                                 <IonButton
                                     expand="block"
-                                    onClick={handleLogin}
+                                    onClick={handleSubmit}
                                     className="login-button"
                                 >
-                                    Log In <IonIcon icon={logInOutline} slot="end" />
+                                    <IonIcon slot="start" icon={isRegistering ? personAddOutline : logInOutline} />
+                                    {isRegistering ? 'Sign Up' : 'Login'}
+                                </IonButton>
+                                <IonButton fill="clear" onClick={() => setIsRegistering(!isRegistering)}>
+                                    {isRegistering ? 'Already have an account? Login' : 'Need an account? Register'}
                                 </IonButton>
                             </div>
                         </IonCardContent>

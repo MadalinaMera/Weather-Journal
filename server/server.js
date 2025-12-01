@@ -2,189 +2,189 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
-const { v4: uuidv4 } = require('uuid');
-const jwt = require('jsonwebtoken'); // Import JWT
-
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const { Pool } = require('pg');
+const {v4: uuidv4}  = require('uuid');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-    cors: {
-        origin: '*',
-        methods: ['GET', 'POST', 'PUT']
-    }
+    cors: { origin: '*', methods: ['GET', 'POST', 'PUT'] }
 });
 
-// Configuration
+// --- CONFIGURATION ---
 const PORT = process.env.PORT || 3001;
-const JWT_SECRET = 'your-secret-key-change-this-in-production'; // Keep this secure
+const JWT_SECRET = 'super-secret-key-change-in-production';
 
-// Middleware
+// Database Connection
+const pool = new Pool({
+    user: 'postgres',      // CHANGE THIS
+    host: 'localhost',
+    database: 'weather_journal', // CHANGE THIS
+    password: 'postgres',  // CHANGE THIS
+    port: 5432,
+});
+
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '50mb' })); // High limit for Base64 photos
 
-// In-memory storage
-// Users for authentication (In a real app, this would be a database)
-const users = [
-    { username: 'admin', password: 'password123' },
-    { username: 'user1', password: '123' }
-];
-
-let weatherEntries = [
-    {
-        id: uuidv4(),
-        date: new Date(Date.now() - 86400000).toISOString(),
-        temperature: 22,
-        description: 'Sunny with clear skies',
-        photoUrl: 'https://images.unsplash.com/photo-1601297183305-6df142704ea2',
-        coords: { latitude: 40.7128, longitude: -74.0060 }
-    },
-    {
-        id: uuidv4(),
-        date: new Date(Date.now() - 172800000).toISOString(),
-        temperature: 18,
-        description: 'Partly cloudy, cool breeze',
-        photoUrl: 'https://images.unsplash.com/photo-1534088568595-a066f410bcda',
-        coords: { latitude: 40.7128, longitude: -74.0060 }
-    },
-    {
-        id: uuidv4(),
-        date: new Date(Date.now() - 259200000).toISOString(),
-        temperature: 15,
-        description: 'Overcast with light rain',
-        photoUrl: 'https://images.unsplash.com/photo-1519692933481-e162a57d6721',
-        coords: { latitude: 40.7128, longitude: -74.0060 }
-    }
-];
-
-// --- JWT Middleware ---
+// --- MIDDLEWARE ---
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
-
-    if (token == null) return res.status(401).json({ error: 'No token provided' });
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'No token provided' });
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
         if (err) return res.status(403).json({ error: 'Invalid token' });
-        req.user = user;
+        req.user = user; // contains { id, username }
         next();
     });
 };
 
-// --- Socket.io ---
-io.on('connection', (socket) => {
-    console.log('Client connected:', socket.id);
-    socket.on('disconnect', () => {
-        console.log('Client disconnected:', socket.id);
+// --- SOCKET.IO AUTH ---
+// Middleware to protect socket connection
+io.use((socket, next) => {
+    const token = socket.handshake.auth.token;
+    if (!token) return next(new Error("Authentication error"));
+
+    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+        if (err) return next(new Error("Authentication error"));
+        socket.user = decoded; // Attach user to socket
+        next();
     });
 });
 
-// --- Routes ---
+io.on('connection', (socket) => {
+    console.log(`User ${socket.user.username} connected (Socket: ${socket.id})`);
 
-// Login Endpoint (Issues JWT)
-app.post('/login', (req, res) => {
+    // Join a private room for this user ID
+    socket.join(`user_${socket.user.id}`);
+
+    socket.on('disconnect', () => {
+        console.log('Client disconnected');
+    });
+});
+
+// --- AUTH ROUTES ---
+
+// Register
+app.post('/register', async (req, res) => {
     const { username, password } = req.body;
-    // Validate user (Simple check against in-memory array)
-    const user = users.find(u => u.username === username && u.password === password);
+    if (!username || !password) return res.status(400).json({ error: 'Missing fields' });
 
-    if (user) {
-        // Generate JWT
-        const token = jwt.sign({ username: user.username }, JWT_SECRET, { expiresIn: '24h' });
-        res.json({ token, username: user.username });
-    } else {
-        res.status(401).json({ error: 'Invalid credentials' });
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const result = await pool.query(
+            'INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id, username',
+            [username, hashedPassword]
+        );
+        res.status(201).json({ message: 'User created', user: result.rows[0] });
+    } catch (err) {
+        if (err.code === '23505') return res.status(400).json({ error: 'Username exists' });
+        res.status(500).json({ error: err.message });
     }
 });
 
-// GET /entries - Fetch entries (Protected)
-app.get('/entries', authenticateToken, (req, res) => {
+// Login
+app.post('/login', async (req, res) => {
+    const { username, password } = req.body;
+    try {
+        const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+        const user = result.rows[0];
+
+        if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
+        const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '24h' });
+        res.json({ token, username: user.username });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- JOURNAL ROUTES (Protected) ---
+
+app.get('/entries', authenticateToken, async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
 
-    // Sort by date descending
-    const sortedEntries = [...weatherEntries].sort((a, b) =>
-        new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
+    try {
+        const result = await pool.query(
+            `SELECT * FROM entries WHERE user_id = $1 ORDER BY date DESC LIMIT $2 OFFSET $3`,
+            [req.user.id, limit, offset]
+        );
 
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
+        // Check if there are more
+        const countResult = await pool.query('SELECT COUNT(*) FROM entries WHERE user_id = $1', [req.user.id]);
+        const total = parseInt(countResult.rows[0].count);
 
-    const paginatedEntries = sortedEntries.slice(startIndex, endIndex);
-    const hasMore = endIndex < sortedEntries.length;
-
-    res.json({
-        entries: paginatedEntries,
-        total: sortedEntries.length,
-        page,
-        limit,
-        hasMore
-    });
-});
-
-// POST /entries - Add a new entry (Protected)
-app.post('/entries', authenticateToken, (req, res) => {
-    const { date, temperature, description, photoUrl, coords } = req.body;
-
-    if (!date || temperature === undefined || !description || !coords) {
-        return res.status(400).json({
-            error: 'Missing required fields: date, temperature, description, coords'
+        res.json({
+            entries: result.rows,
+            total,
+            page,
+            hasMore: offset + limit < total
         });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
-
-    const newEntry = {
-        id: uuidv4(),
-        date,
-        temperature: parseFloat(temperature),
-        description,
-        photoUrl: photoUrl || undefined,
-        coords
-    };
-
-    weatherEntries.push(newEntry);
-
-    io.emit('entry_added', newEntry);
-
-    res.status(201).json(newEntry);
 });
 
-// PUT /entries/:id - Update an existing entry (Protected)
-app.put('/entries/:id', authenticateToken, (req, res) => {
+app.post('/entries', authenticateToken, async (req, res) => {
+    const { id, date, temperature, description, photoUrl, coords } = req.body; // Accept ID from client for sync
+
+    try {
+        const entryId = id || uuidv4();
+
+        const query = `
+            INSERT INTO entries (id, user_id, date, temperature, description, photo_url, coords)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING *
+        `;
+        const values = [entryId, req.user.id, date, temperature, description, photoUrl, JSON.stringify(coords)];
+
+        const result = await pool.query(query, values);
+        const newEntry = result.rows[0];
+
+        // Emit ONLY to this user's room
+        io.to(`user_${req.user.id}`).emit('entry_added', newEntry);
+
+        res.status(201).json(newEntry);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.put('/entries/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { date, temperature, description, photoUrl, coords } = req.body;
 
-    const entryIndex = weatherEntries.findIndex(entry => entry.id === id);
+    try {
+        const query = `
+            UPDATE entries 
+            SET date = $1, temperature = $2, description = $3, photo_url = $4, coords = $5
+            WHERE id = $6 AND user_id = $7
+            RETURNING *
+        `;
+        const values = [date, temperature, description, photoUrl, JSON.stringify(coords), id, req.user.id];
 
-    if (entryIndex === -1) {
-        return res.status(404).json({ error: 'Entry not found' });
+        const result = await pool.query(query, values);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Entry not found or unauthorized' });
+        }
+
+        const updatedEntry = result.rows[0];
+        io.to(`user_${req.user.id}`).emit('entry_updated', updatedEntry);
+
+        res.json(updatedEntry);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
-
-    if (!date || temperature === undefined || !description || !coords) {
-        return res.status(400).json({
-            error: 'Missing required fields: date, temperature, description, coords'
-        });
-    }
-
-    const updatedEntry = {
-        id,
-        date,
-        temperature: parseFloat(temperature),
-        description,
-        photoUrl: photoUrl || undefined,
-        coords
-    };
-
-    weatherEntries[entryIndex] = updatedEntry;
-
-    io.emit('entry_updated', updatedEntry);
-
-    res.json(updatedEntry);
-});
-
-// Health check (Public)
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok', entries: weatherEntries.length });
 });
 
 server.listen(PORT, () => {
-    console.log(`🌤️  Weather Journal Server running on port ${PORT}`);
-    console.log(`📡 WebSocket server ready`);
+    console.log(`Postgres Server running on port ${PORT}`);
 });
