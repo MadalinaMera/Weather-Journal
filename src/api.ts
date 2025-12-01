@@ -192,6 +192,7 @@ class ApiService {
         }
     }
 
+
     // Disconnect socket
     disconnect() {
         if (this.socket) {

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
     IonContent, IonHeader, IonPage, IonTitle, IonToolbar, IonList, IonLabel,
     IonFab, IonFabButton, IonIcon, IonText, IonCard, IonCardContent, IonThumbnail, IonChip,
-    useIonModal, useIonToast, IonButton, IonNote
+    useIonModal, useIonToast, IonButton, IonNote, IonInfiniteScroll, IonInfiniteScrollContent
 } from '@ionic/react';
 import { add, cloudyOutline, logOutOutline, cloudOfflineOutline, mapOutline } from 'ionicons/icons'; // Added mapOutline
 import { WeatherEntry } from '../types';
@@ -15,7 +15,7 @@ import { modalEnterAnimation, modalLeaveAnimation } from '../theme/animations'; 
 import './JournalPage.css';
 
 const JournalPage: React.FC = () => {
-    const { entries, isOnline, createEntry, updateEntry } = useJournalSync();
+    const { entries, isOnline, createEntry, updateEntry, loadMore, hasMore } = useJournalSync();
     const { logout } = useAuth();
     const [selectedEntry, setSelectedEntry] = useState<WeatherEntry | undefined>(undefined);
     const [mapEntry, setMapEntry] = useState<WeatherEntry | undefined>(undefined); // For Map Modal
@@ -139,7 +139,15 @@ const JournalPage: React.FC = () => {
                         ))}
                     </IonList>
                 )}
-
+                <IonInfiniteScroll
+                    onIonInfinite={async (ev) => {
+                        await loadMore();
+                        ev.target.complete();
+                    }}
+                    disabled={!hasMore}
+                >
+                    <IonInfiniteScrollContent loadingText="Loading more memories..." />
+                </IonInfiniteScroll>
                 <IonFab vertical="bottom" horizontal="end" slot="fixed">
                     <IonFabButton onClick={() => {
                         setSelectedEntry(undefined);
