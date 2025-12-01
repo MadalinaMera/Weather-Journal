@@ -120,8 +120,13 @@ app.get('/entries', authenticateToken, async (req, res) => {
         const countResult = await pool.query('SELECT COUNT(*) FROM entries WHERE user_id = $1', [req.user.id]);
         const total = parseInt(countResult.rows[0].count);
 
+        const formattedEntries = result.rows.map(row => ({
+            ...row,
+            photoUrl: row.photoUrl,
+            coords: typeof row.coords === 'string' ? JSON.parse(row.coords) : row.coords
+        }));
         res.json({
-            entries: result.rows,
+            entries: formattedEntries,
             total,
             page,
             hasMore: offset + limit < total
@@ -145,7 +150,13 @@ app.post('/entries', authenticateToken, async (req, res) => {
         const values = [entryId, req.user.id, date, temperature, description, photoUrl, JSON.stringify(coords)];
 
         const result = await pool.query(query, values);
-        const newEntry = result.rows[0];
+        const rawEntry = result.rows[0];
+
+        const newEntry = {
+            ...rawEntry,
+            photoUrl: rawEntry.photo_url,
+            coords: typeof rawEntry.coords === 'string' ? JSON.parse(rawEntry.coords) : rawEntry.coords
+        };
 
         // Emit ONLY to this user's room
         io.to(`user_${req.user.id}`).emit('entry_added', newEntry);
@@ -176,7 +187,13 @@ app.put('/entries/:id', authenticateToken, async (req, res) => {
             return res.status(404).json({ error: 'Entry not found or unauthorized' });
         }
 
-        const updatedEntry = result.rows[0];
+        const rawEntry = result.rows[0];
+
+        const updatedEntry = {
+            ...rawEntry,
+            photoUrl: rawEntry.photo_url,
+            coords: typeof rawEntry.coords === 'string' ? JSON.parse(rawEntry.coords) : rawEntry.coords
+        };
         io.to(`user_${req.user.id}`).emit('entry_updated', updatedEntry);
 
         res.json(updatedEntry);
